@@ -1,0 +1,14 @@
+@import "tailwindcss";
+
+@layer utilities {
+  /* Remove number input arrows for Webkit (Chrome, Safari) */
+  input[type="number"].no-spinner::-webkit-outer-spin-button,
+  input[type="number"].no-spinner::-webkit-inner-spin-button {
+    @apply appearance-none m-0;
+  }
+
+  /* Remove number input arrows for Firefox */
+  input[type="number"].no-spinner {
+    -moz-appearance: textfield;
+  }
+}
