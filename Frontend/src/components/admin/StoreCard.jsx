@@ -29,39 +29,45 @@ const fieldConfig = {
       type: "date",
       readOnly: true,
     },
-    { name: "oneYearCharges", label: "1st Year Charge", type: "number" },
   ],
   payments: [
+    {
+      name: "oneYearCharges",
+      label: "1st Year Charge",
+      type: "number",
+      readOnly: true,
+    },
+    {
+      name: "renewalAmount",
+      label: "Renewal Amount",
+      type: "number",
+      readOnly: true,
+    },
     {
       name: "systemRequired",
       label: "System Required",
       type: "select",
-      options: ["yes", "no"],
+      options: ["Yes", "No"],
       readOnly: true,
     },
     {
       name: "systemAmount",
       label: "System Amount",
-      type: "text",
+      type: "number",
       readOnly: true,
     },
     {
       name: "paymentStatus",
       label: "Payment Status",
       type: "select",
-      options: ["pending", "received"],
+      options: ["Pending", "Received"],
       readOnly: true,
     },
-    {
-      name: "receivedAmount",
-      label: "Received Amount",
-      type: "text",
-      readOnly: true,
-    },
+    { name: "receivedAmount", label: "Last Received Amount", type: "number" },
     {
       name: "pendingAmount",
       label: "Pending Amount",
-      type: "text",
+      type: "number",
       readOnly: true,
     },
   ],
@@ -72,13 +78,13 @@ const fieldConfig = {
       name: "laneAvailable",
       label: "Lane Available",
       type: "select",
-      options: ["yes", "no"],
+      options: ["Yes", "No"],
     },
     { name: "lanes", label: "Number of Lanes", type: "text" },
   ],
 };
 
-// Helper: Format date YYYY-MM-DD
+// Helper: format date YYYY-MM-DD
 const formatDate = (value) => {
   if (!value) return "";
   const date = new Date(value);
@@ -93,8 +99,6 @@ const StoreCard = ({ store, refreshStores }) => {
   const [activeTab, setActiveTab] = useState("details");
   const [editingField, setEditingField] = useState("");
   const [fieldValue, setFieldValue] = useState("");
-
-  // Local state to render immediate updates
   const [storeData, setStoreData] = useState(store);
 
   useEffect(() => {
@@ -103,33 +107,53 @@ const StoreCard = ({ store, refreshStores }) => {
 
   const handleEditClick = (field, value) => {
     setEditingField(field);
-    setFieldValue(value);
+    setFieldValue(value || "");
   };
 
+  // Updated function to call correct endpoint
   const handleFieldUpdate = async (field) => {
     const token = Cookies.get("token");
     if (!token) return alert("Unauthorized");
 
-    const payload = {};
-    payload[field] = fieldValue;
-
-    if (field === "goLiveDate") {
-      const date = new Date(fieldValue);
-      date.setFullYear(date.getFullYear() + 1);
-      payload.renewalDate = date.toISOString();
-    }
+    const payload = { [field]: fieldValue };
 
     try {
-      const res = await axios.patch(
-        `${BACKEND_URL}/api/store/updatestore/${store._id}`,
-        payload,
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
+      let res;
 
-      if (res.status === 200) alert(res.data.message);
-      setStoreData((prev) => ({ ...prev, ...payload }));
-      setEditingField(""); // go back to pencil
-      refreshStores?.(); // refresh full list if function provided
+      // Use updatePayment API for receivedAmount
+      if (field === "receivedAmount") {
+        const payAmount = Number(fieldValue);
+        if (!payAmount || payAmount <= 0) {
+          return alert("Enter a valid amount");
+        }
+        if (payAmount > storeData.pendingAmount) {
+          return alert(
+            `Payment cannot be greater than pending amount (₹${storeData.pendingAmount})`,
+          );
+        }
+
+        res = await axios.patch(
+          `${BACKEND_URL}/api/store/updatepayment/${storeData._id}`,
+          { receivedAmount: payAmount },
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+      } else {
+        // General update endpoint
+        res = await axios.patch(
+          `${BACKEND_URL}/api/store/updatestore/${storeData._id}`,
+          payload,
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+      }
+
+      if (res.status === 200) {
+        alert(res.data.message);
+        // Update local state with returned store data
+        setStoreData(res.data.store || { ...storeData, ...payload });
+      }
+
+      setEditingField("");
+      refreshStores?.();
     } catch (err) {
       console.error(err);
       alert("Update failed");
@@ -138,33 +162,19 @@ const StoreCard = ({ store, refreshStores }) => {
 
   const renderField = (field) => {
     const { name, type, options, readOnly } = field;
-    const originalValue = storeData[name];
-    const isChanged = fieldValue !== originalValue;
+    const value = storeData[name];
 
-    // Read-only fields (payment section + renewalDate)
     if (readOnly) {
-      if (type === "select")
-        return (
-          <div className="bg-gray-100 px-3 py-2 rounded">
-            {originalValue || "-"}
-          </div>
-        );
-      if (type === "date")
-        return (
-          <div className="bg-gray-100 px-3 py-2 rounded">
-            {formatDate(originalValue)}
-          </div>
-        );
       return (
         <div className="bg-gray-100 px-3 py-2 rounded">
-          {originalValue || "-"}
+          {type === "date" ? formatDate(value) : (value ?? "-")}
         </div>
       );
     }
 
-    // Editing mode
     if (editingField === name) {
       let inputElement;
+
       if (type === "select") {
         inputElement = (
           <select
@@ -179,20 +189,11 @@ const StoreCard = ({ store, refreshStores }) => {
             ))}
           </select>
         );
-      } else if (type === "date") {
-        inputElement = (
-          <input
-            type="date"
-            value={formatDate(fieldValue)}
-            onChange={(e) => setFieldValue(e.target.value)}
-            className="border rounded px-3 py-2"
-          />
-        );
       } else {
         inputElement = (
           <input
-            type="text"
-            value={fieldValue}
+            type={type}
+            value={type === "date" ? formatDate(fieldValue) : fieldValue}
             onChange={(e) => setFieldValue(e.target.value)}
             className="border rounded px-3 py-2"
           />
@@ -202,14 +203,12 @@ const StoreCard = ({ store, refreshStores }) => {
       return (
         <div className="flex gap-2 items-center">
           {inputElement}
-          {isChanged && (
-            <button
-              onClick={() => handleFieldUpdate(name)}
-              className="bg-green-600 text-white px-3 py-1 rounded"
-            >
-              Save
-            </button>
-          )}
+          <button
+            onClick={() => handleFieldUpdate(name)}
+            className="bg-green-600 text-white px-3 py-1 rounded"
+          >
+            Save
+          </button>
           <button
             onClick={() => setEditingField("")}
             className="bg-gray-400 text-white px-3 py-1 rounded"
@@ -220,20 +219,15 @@ const StoreCard = ({ store, refreshStores }) => {
       );
     }
 
-    // Default display mode
-    let displayValue = "";
-    if (type === "date") displayValue = formatDate(originalValue);
-    else displayValue = originalValue?.toString() || "";
-
     return (
       <div className="bg-gray-100 px-3 py-2 rounded flex justify-between items-center">
-        <span>{displayValue}</span>
+        <span>{type === "date" ? formatDate(value) : (value ?? "-")}</span>
         <Pencil
           size={16}
           className="text-gray-500 cursor-pointer"
           onClick={(e) => {
             e.stopPropagation();
-            handleEditClick(name, originalValue);
+            handleEditClick(name, value);
           }}
         />
       </div>
@@ -242,7 +236,7 @@ const StoreCard = ({ store, refreshStores }) => {
 
   return (
     <>
-      {/* Store Card Summary */}
+      {/* Summary Card */}
       <div
         onClick={() => setShowDetails(true)}
         className="bg-white rounded-xl shadow p-4 flex items-center justify-between cursor-pointer hover:shadow-lg transition"
@@ -282,7 +276,11 @@ const StoreCard = ({ store, refreshStores }) => {
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
-                  className={`px-6 py-2 font-semibold capitalize ${activeTab === tab ? "border-b-2 border-blue-600 text-blue-600" : "text-gray-500"}`}
+                  className={`px-6 py-2 font-semibold capitalize ${
+                    activeTab === tab
+                      ? "border-b-2 border-blue-600 text-blue-600"
+                      : "text-gray-500"
+                  }`}
                 >
                   {tab}
                 </button>
@@ -292,12 +290,13 @@ const StoreCard = ({ store, refreshStores }) => {
             {/* Tab Content */}
             <div className="grid grid-cols-2 gap-4">
               {fieldConfig[activeTab].map((field) => {
-                // Conditional: show systemAmount only if systemRequired = "yes"
+                // Only show systemAmount if systemRequired = "Yes"
                 if (
                   field.name === "systemAmount" &&
-                  storeData.systemRequired !== "yes"
+                  String(storeData.systemRequired).toLowerCase() !== "yes"
                 )
                   return null;
+
                 return (
                   <div key={field.name}>
                     <label className="block text-sm font-semibold mb-1">

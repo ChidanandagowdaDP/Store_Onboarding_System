@@ -42,17 +42,23 @@ const AmountPending = () => {
       alert("Enter valid amount");
       return;
     }
+    if (Number(payAmount) > selectedStore.pendingAmount) {
+      alert(
+        `Payment cannot be greater than pending amount (₹${selectedStore.pendingAmount})`,
+      );
+      return;
+    }
 
     try {
       const token = Cookies.get("token");
 
-      await axios.patch(
+      const res = await axios.patch(
         `${BACKEND_URL}/api/store/updatepayment/${selectedStore._id}`,
         { receivedAmount: Number(payAmount) },
         { headers: { Authorization: `Bearer ${token}` } },
       );
 
-      alert("Payment Updated Successfully");
+      alert(res.data.message);
 
       setSelectedStore(null);
       setPayAmount("");
@@ -157,6 +163,11 @@ const AmountPending = () => {
                   <InputField
                     label="Renewal Amount"
                     value={`₹ ${selectedStore.renewalAmount}`}
+                    readOnly
+                  />
+                  <InputField
+                    label="System Amount"
+                    value={`₹ ${selectedStore.systemAmount}`}
                     readOnly
                   />
                   <InputField

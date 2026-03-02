@@ -18,7 +18,7 @@ const ApprovalPending = () => {
       try {
         const token = Cookies.get("token");
         const response = await axios.get(
-          `${BACKEND_URL}/api/store/getstores?status=pending`,
+          `${BACKEND_URL}/api/store/getstores?status=Pending`,
           { headers: { Authorization: `Bearer ${token}` } },
         );
         setStores(response.data.stores || []);
@@ -42,7 +42,7 @@ const ApprovalPending = () => {
     const updatedFields = {};
     if (storeIdInput !== selectedStore.storeId) {
       updatedFields.storeId = storeIdInput;
-      updatedFields.status = "active";
+      updatedFields.status = "Active";
     }
 
     try {
@@ -55,10 +55,11 @@ const ApprovalPending = () => {
 
       alert("Store Updated & Activated!");
 
+      // Refresh
       setSelectedStore(null);
       setStoreIdInput("");
       const response = await axios.get(
-        `${BACKEND_URL}/api/store/getstores?status=pending`,
+        `${BACKEND_URL}/api/store/getstores?status=Pending`,
         { headers: { Authorization: `Bearer ${token}` } },
       );
       setStores(response.data.stores || []);
@@ -68,29 +69,57 @@ const ApprovalPending = () => {
     }
   };
 
-  // Helper to format Date + Time
+  const handleRejectStore = async () => {
+    if (
+      !window.confirm("Are you sure you want to reject and delete this store?")
+    )
+      return;
+
+    try {
+      const token = Cookies.get("token");
+      await axios.delete(
+        `${BACKEND_URL}/api/store/deletestore/${selectedStore._id}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+
+      alert("Store Rejected & Deleted!");
+
+      // Refresh
+      setSelectedStore(null);
+      setStoreIdInput("");
+      const response = await axios.get(
+        `${BACKEND_URL}/api/store/getstores?status=Pending`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      setStores(response.data.stores || []);
+    } catch (error) {
+      console.error(error);
+      alert("Failed to reject store");
+    }
+  };
+
   const formatDateTime = (isoString) =>
     isoString
       ? new Date(isoString).toLocaleDateString() +
         " " +
         new Date(isoString).toLocaleTimeString()
       : "N/A";
+
   const formatLabel = (field) => {
     if (!field) return "";
-    return (
-      field
-        // Insert space before capital letters
-        .replace(/([A-Z])/g, " $1")
-        // Capitalize first letter of each word
-        .split(" ")
-        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-        .join(" ")
-        .trim()
-    );
+    return field
+      .replace(/([A-Z])/g, " $1")
+      .split(" ")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ")
+      .trim();
   };
+
   return (
     <div className="flex flex-col h-full">
-      {/* Sticky Search + Download */}
+      {/* Sticky Search */}
       <div className="sticky top-0 z-20 bg-white shadow p-3">
         <div className="flex flex-col md:flex-row justify-end items-center gap-2">
           <input
@@ -168,14 +197,11 @@ const ApprovalPending = () => {
                     />
                   ))}
 
-                  {/* Go Live Date + Time */}
                   <InputField
                     label="Go Live Date & Time"
                     value={formatDateTime(selectedStore.goLiveDate)}
                     readOnly
                   />
-
-                  {/* Renewal Date + Time */}
                   <InputField
                     label="Renewal Date & Time"
                     value={formatDateTime(selectedStore.renewalDate)}
@@ -194,14 +220,22 @@ const ApprovalPending = () => {
                 />
               </FormSection>
 
-              {/* Update Button */}
-              <div className="flex justify-center">
+              {/* Action Buttons */}
+              <div className="flex justify-center gap-4">
                 <button
                   type="button"
                   onClick={handleStoreIdUpdate}
                   className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
                 >
                   Update Store ID & Activate
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleRejectStore}
+                  className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
+                >
+                  Reject
                 </button>
               </div>
             </form>

@@ -97,22 +97,28 @@ export const renewStore = async (req, res) => {
       return res.status(404).json({ message: "Store not found" });
     }
 
+    if (store.pendingAmount > 0) {
+      return res.status(400).json({
+        message: `Cannot renew store. Pending payment of ₹${store.pendingAmount} exists.`,
+      });
+    }
+
     // 2️⃣ Update renewal date (+1 year)
     const newRenewalDate = store.renewalDate
       ? new Date(store.renewalDate)
       : new Date();
     newRenewalDate.setFullYear(newRenewalDate.getFullYear() + 1);
     store.renewalDate = newRenewalDate;
+    store.isRenewed = true;
 
     await store.save();
 
-    res.status(200).json({
+    return res.status(200).json({
       message: "Store renewed successfully",
       store,
     });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
 
@@ -139,20 +145,32 @@ export const updatePayment = async (req, res) => {
   try {
     const { receivedAmount } = req.body;
 
-    const updatedStore = await Store.findByIdAndUpdate(
-      req.params.id,
-      { $set: { receivedAmount } },
-      { new: true, runValidators: true },
-    );
-
-    if (!updatedStore) {
-      return res.status(404).json({ message: "Store not found" });
+    if (!receivedAmount || receivedAmount <= 0) {
+      return res.status(400).json({ message: "Invalid payment amount" });
     }
 
-    res.status(200).json({
-      message: "Payment updated successfully",
-      store: updatedStore,
+    const store = await Store.findById(req.params.id);
+    if (!store) return res.status(404).json({ message: "Store not found" });
+
+    store.receivedAmount = (store.receivedAmount || 0) + Number(receivedAmount);
+
+    store.paymentHistory.push({
+      amount: Number(receivedAmount),
+      updatedBy: req.user?.name || "Admin",
     });
+
+    const totalAmount = store.isRenewed
+      ? store.renewalAmount || 0
+      : (store.oneYearCharges || 0) + (store.systemAmount || 0);
+
+    store.pendingAmount = totalAmount - store.receivedAmount;
+    if (store.pendingAmount < 0) store.pendingAmount = 0;
+    store.paymentStatus =
+      store.pendingAmount === 0 && totalAmount > 0 ? "Received" : "Pending";
+
+    await store.save();
+
+    res.status(200).json({ message: "Payment updated successfully", store });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: error.message });

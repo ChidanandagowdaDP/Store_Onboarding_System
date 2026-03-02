@@ -21,7 +21,7 @@ const CreateStore = () => {
     storeType: "",
     ksbclId: "",
     ksbclPassword: "",
-    laneAvailable: "no",
+    laneAvailable: "No",
     lanes: "",
     ownerName: "",
     ownerMobile: "",
@@ -31,7 +31,7 @@ const CreateStore = () => {
     goLiveDate: "",
     oneYearCharges: "",
     renewalAmount: "",
-    systemRequired: "no",
+    systemRequired: "No",
     systemAmount: "",
     leadGivenBy: "",
   };
@@ -187,7 +187,7 @@ const CreateStore = () => {
                 onChange={handleChange}
               />
 
-              {formData.laneAvailable === "yes" && (
+              {formData.laneAvailable === "Yes" && (
                 <SelectField
                   label="No. of Lanes"
                   name="lanes"

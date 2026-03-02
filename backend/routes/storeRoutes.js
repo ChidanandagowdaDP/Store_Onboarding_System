@@ -25,7 +25,7 @@ router.patch(
   updateStore,
 );
 router.patch(
-  "/renewStore/:id",
+  "/renewstore/:id",
   authMiddleware,
   roleMiddleware("admin"),
   renewStore,

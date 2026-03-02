@@ -51,7 +51,7 @@ const StoreCard = ({ store, onDeleted }) => {
           <p className="text-sm text-gray-500">{store.address}</p>
 
           {/* 🔥 Show Store ID in header when Active */}
-          {store.status === "active" && store.storeId && (
+          {store.status === "Active" && store.storeId && (
             <p className="text-sm font-bold text-green-700 mt-1">
               Store ID: {store.storeId}
             </p>
@@ -94,7 +94,7 @@ const StoreCard = ({ store, onDeleted }) => {
             <strong>Lane Available:</strong> {store.laneAvailable}
           </p>
 
-          {store.laneAvailable === "yes" && (
+          {store.laneAvailable === "Yes" && (
             <p>
               <strong>No. of Lanes:</strong> {store.lanes}
             </p>
@@ -133,7 +133,7 @@ const StoreCard = ({ store, onDeleted }) => {
             <strong>System Required:</strong> {store.systemRequired}
           </p>
 
-          {store.systemRequired === "yes" && (
+          {store.systemRequired === "Yes" && (
             <p>
               <strong>System Amount:</strong> ₹{store.systemAmount}
             </p>

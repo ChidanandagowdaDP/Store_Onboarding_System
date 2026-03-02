@@ -49,7 +49,7 @@ const RenewalApproval = () => {
 
       // PATCH request with proper headers and body
       const res = await axios.patch(
-        `${BACKEND_URL}/api/store/renewStore/${storeId}`,
+        `${BACKEND_URL}/api/store/renewstore/${storeId}`,
         { renewalAmount }, // request body
         {
           headers: { Authorization: `Bearer ${token}` }, // config with headers
@@ -68,8 +68,9 @@ const RenewalApproval = () => {
         setExpandedStoreId(null);
       }
     } catch (error) {
-      console.error(error);
-      alert("Renewal failed");
+      const message =
+        error.response?.data?.message || "Renewal failed. Unknown error.";
+      alert(message);
     }
   };
 
